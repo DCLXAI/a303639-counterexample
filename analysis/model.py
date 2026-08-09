@@ -5,10 +5,27 @@ Runtime: ~2-3 min."""
 import numpy as np, random
 from math import comb, log, sqrt, exp
 
-n0 = 800322180
-M  = 8*9*49*361                      # obstruction modulus
-B  = [comb(2*k+1,k) for k in range(16)]
-pairs = [(i,j) for i in range(16) for j in range(i,16) if B[i]+B[j] <= n0]
+n0   = 800322180
+M    = 8*9*49*361                    # obstruction modulus
+NMAX = 2*10**9                       # upper end of the sampling range
+
+# The pair list must be derived from the sampling range, not from n0. B(16) =
+# 1166803110 < NMAX, so every n >= B(16)+B(0) = 1166803111 admits pairs with
+# d = 16 that do not qualify at n0. Fixing the list at n0's 136 pairs would
+# silently measure a restricted problem for the upper half of the range.
+B, k = [1], 0
+while B[k] <= NMAX:
+    k += 1; B.append(comb(2*k+1, k))
+KMAX = k-1                                                  # = 16 at NMAX = 2e9
+ALL = [(i,j) for i in range(KMAX+1) for j in range(i,KMAX+1) if B[i]+B[j] <= NMAX]
+assert KMAX == 16 and len(ALL) == 152, (KMAX, len(ALL))
+
+def qual(n):
+    """Pairs (c,d), c<=d, actually available at n."""
+    return [(i,j) for i,j in ALL if B[i]+B[j] <= n]
+
+pairs = qual(n0)                                            # 136 for n0
+assert len(pairs) == 136
 
 def forced_fail(r):
     """Deterministic: residues alone force r not to be a sum of two squares."""
@@ -45,15 +62,18 @@ fc=Counter(forced_fail(n0-B[i]-B[j]) for i,j in pairs)
 free=fc.pop(None,0)
 print(f"[1] forced pairs: {len(pairs)-free}/{len(pairs)}  {dict(fc)};  free = {free}")
 
-# 2. free-pair count F(n) for random n  (pure modular arithmetic)
-Fs=[]
+# 2. free-pair count F(n) and total qualifying-pair count K(n) for random n
+#    (pure modular arithmetic).  K(n) is recorded too: it jumps from 136 to 152
+#    across the range as the index-16 pairs come into play.
+Fs=[]; Ks=[]
 for _ in range(300000):
-    n=random.randrange(4*10**8, 2*10**9)
-    f=sum(1 for i,j in pairs if B[i]+B[j]<=n and forced_fail(n-B[i]-B[j]) is None)
-    Fs.append(f)
-Fs=np.array(Fs)
-print(f"[2] F(n): mean {Fs.mean():.1f}, min {Fs.min()};  n0 has F=30 "
-      f"-> percentile {100*(Fs<=30).mean():.3f}%")
+    n=random.randrange(4*10**8, NMAX)
+    q=[(i,j) for i,j in ALL if B[i]+B[j]<=n]
+    Fs.append(sum(1 for i,j in q if forced_fail(n-B[i]-B[j]) is None)); Ks.append(len(q))
+Fs=np.array(Fs); Ks=np.array(Ks)
+print(f"[2] F(n): mean {Fs.mean():.2f}, min {Fs.min()};  n0 has F={free} "
+      f"-> percentile {100*(Fs<=free).mean():.5f}%")
+print(f"    K(n): mean {Ks.mean():.1f}, range {Ks.min()}..{Ks.max()}")
 
 # 3. conditional S2 density among non-forced residues
 hit=tot=0
@@ -69,15 +89,25 @@ obs=[]
 for _ in range(300):
     t=random.randrange(2*10**8//M, 2*10**9//M)
     n=t*M+n0%M
-    qp=[(i,j) for i,j in pairs if B[i]+B[j]<=n]
-    obs.append((sum(not is_S2(n-B[i]-B[j]) for i,j in qp), len(qp)))
-fr=np.array([a for a,_ in obs]); tt=np.array([b for _,b in obs])
+    qp=qual(n)
+    Fn=sum(1 for i,j in qp if forced_fail(n-B[i]-B[j]) is None)
+    obs.append((sum(not is_S2(n-B[i]-B[j]) for i,j in qp), len(qp), Fn))
+fr=np.array([a for a,_,_ in obs]); tt=np.array([b for _,b,_ in obs])
+fn=np.array([c for _,_,c in obs])
+pred=(tt-fn)+(1-d_cond)*fn          # forced pairs fail w.p. 1, free ones w.p. 1-d_cond
 print(f"[4] same-class n (300): observed mean fails {fr.mean():.1f}/{tt.mean():.1f}, "
       f"max {fr.max()}; full exceptions {(fr==tt).sum()}")
+print(f"    model predicts mean fails {pred.mean():.1f} (observed {fr.mean():.1f})")
 
 # 5. expectations
+d_marg=0.174                        # measured marginal density of sums of two squares
+P_naive=(1-d_marg)**136             # n0 has 136 qualifying pairs
+P_cond=(1-d_cond)**free             # ... of which only `free` are not forced
+print(f"[5] n0: P(all 136 fail) naive ~ {P_naive:.2e}; conditioned on its class "
+      f"~ {P_cond:.2e}  -> amplification ~ {P_cond/P_naive:.3g}")
+E_naive=np.mean((1-d_marg)**Ks.astype(float))*(2*10**9-4*10**8)
 E=np.mean((1-d_cond)**Fs.astype(float))*(2*10**9-4*10**8)
-print(f"[5] refined E[#exceptions, 4e8..2e9] ~ {E:.3f}")
+print(f"[5] E[#exceptions, 4e8..2e9]: naive ~ {E_naive:.3f}, refined ~ {E:.3f}")
 KLR=0.764223654
 Bx=[comb(2*k+1,k) for k in range(24)]
 bps=sorted(set(Bx[i]+Bx[j] for i in range(24) for j in range(i,24)))

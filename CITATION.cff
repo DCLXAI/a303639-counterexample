@@ -1,10 +1,12 @@
 cff-version: 1.2.0
 message: "If you use this work, please cite it as below."
 title: "A303639 Counterexample Project"
+type: software
+version: 1.0.1
 authors:
   - family-names: "Jeong"
     given-names: "Sunsu"
-date-released: 2026-08-09
+date-released: 2026-08-10
 license: MIT
 repository-code: "https://github.com/DCLXAI/a303639-counterexample"
 abstract: >
@@ -12,6 +14,9 @@ abstract: >
   recorded in OEIS A303639, with machine-checkable certificates for all
   136 relevant pairs, an independent verifier, and an obstruction-structure
   analysis explaining why the counterexample occurs and is likely unique.
+  Version 1.0.1 corrects the searcher's pair cutoff (152 shifts, not 136, for
+  the full 2e9 scan), recomputes the heuristic statistics, bounds the range of
+  Lemma 4.1, and replaces Miller-Rabin with unconditional trial division.
 keywords:
   - number theory
   - OEIS

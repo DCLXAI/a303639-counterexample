@@ -14,5 +14,15 @@ jobs:
         run: python analysis/forced_table.py
       - name: Test suite (incl. match against official OEIS data)
         run: pytest tests/ -q
-      - name: Build and smoke-test searcher (N=1e8)
-        run: gcc -O3 -o search searcher/search.c && ./search 100000000
+      - name: Build searcher and run the full [1, 2e9] scan
+        # Must be the full bound: at N=1e8 the cutoff is k<=14, so a searcher
+        # that wrongly stops at k=15 still looks correct. Only N > B(16) =
+        # 1166803110 exercises the index-16 pairs. ~500 MB, well under the
+        # runner's memory.
+        run: |
+          gcc -O3 -o search searcher/search.c
+          ./search 2000000000 > out.txt 2> err.txt
+          cat err.txt out.txt
+          grep -q 'k = 0\.\.16' err.txt
+          grep -q '152 shifts done' err.txt
+          [ "$(cat out.txt)" = "COUNTEREXAMPLE n=800322180" ]

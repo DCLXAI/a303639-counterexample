@@ -2,10 +2,11 @@
 """Why does the counterexample exist? Modular-obstruction analysis.
 
 Naive heuristic: by Landau-Ramanujan the density of sums of two squares near
-x is ~ 0.7642/sqrt(ln x) (~0.17 at x ~ 8*10^8). If the 136 remainders were
-independent, P(all miss) ~ (1-0.17)^136 ~ e^-25, and one would expect ~0.03
-counterexamples below 2*10^9 -- roughly consistent with finding exactly one,
-but only because the misses are NOT independent:
+x is ~ 0.7642/sqrt(ln x) (~0.17 at x ~ 8*10^8). If the 136 remainders at n0
+were independent, P(all miss) ~ (1-0.17)^136 ~ e^-25 -- far too small to expect
+even one counterexample in this range (model.py computes the range expectation
+properly, using the actual pair count K(n), which reaches 152 by 2*10^9). One
+is found anyway, because the misses are NOT independent:
 
 n = 800322180 = 2^2 * 3 * 5 * 7 * 19 * 100291 is divisible by 3, 7 and 19
 (all == 3 mod 4). This places the 136 remainders in correlated residue

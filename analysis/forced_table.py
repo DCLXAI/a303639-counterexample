@@ -8,7 +8,15 @@ import json, os
 from math import comb
 
 n0, M = 800322180, 8*9*49*361
-B = [comb(2*k+1,k) for k in range(16)]
+B = [comb(2*k+1,k) for k in range(18)]
+
+# Validity range of the lemma's *conclusion*. The forced-failure claim itself
+# depends only on r mod M and so holds for every n == n0 (mod M). But the
+# conclusion "only the 30 free pairs remain" additionally needs the 136 pairs
+# below to be ALL the qualifying pairs, which fails once a pair with index 16
+# becomes available:  B(16) + B(0) = 1166803111.
+LEMMA_MAX = B[16] + B[0]
+assert LEMMA_MAX == 1166803111 and n0 < LEMMA_MAX
 
 def classify(rho):
     """rho = r mod M. Returns obstruction case or None. Each case is a
@@ -51,6 +59,9 @@ for r in rows:
         assert t%4==3
 
 out = os.path.join(os.path.dirname(__file__), '..', 'certificates', 'forced_table.json')
-json.dump(dict(n0=n0, M=M, forced=rows, free=[dict(c=f['c'],d=f['d']) for f in free],
+json.dump(dict(n0=n0, M=M, lemma_max=LEMMA_MAX, forced=rows,
+               free=[dict(c=f['c'],d=f['d']) for f in free],
                counts=dict(cnt)), open(out,'w'), indent=1)
 print(f"Lemma 4.1 table verified and written: 106 forced ({dict(cnt)}), 30 free.")
+print(f"    conclusion valid for n == n0 (mod M) with n < {LEMMA_MAX} "
+      f"(= B(16)+B(0); beyond it further pairs qualify).")
