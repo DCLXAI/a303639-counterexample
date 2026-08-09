@@ -48,7 +48,9 @@ pairs while sampling up to `2*10^9`, so the §4.2-4.4 statistics measured a
 restricted problem; Lemma 4.1 was stated without the range bound it needs; and
 the checker's Miller-Rabin bases carried an incorrect deterministic bound.
 All are corrected and the §4 figures recomputed — see **NOTE.md §5.6**.
-Cite the corrected release, not v1.0.0.
+Cite the corrected release — v1.0.1, DOI [10.5281/zenodo.21863408](https://doi.org/10.5281/zenodo.21863408)
+— not v1.0.0 (DOI 10.5281/zenodo.21863026). The badge above is the *concept*
+DOI, which always resolves to the newest version.
 
 ## Status
 - [ ] OEIS comment submitted / accepted

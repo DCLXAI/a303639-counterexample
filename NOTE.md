@@ -192,8 +192,8 @@ Two checks guard against having implemented a different sequence than A303639:
    Mathematica program, so the author's verification logic and ours coincide.
 
 ### 5.6 Erratum for v1.0.0
-Release v1.0.0 (Zenodo DOI 10.5281/zenodo.21863025) contains four defects, all
-now corrected. None affects Theorem 1, whose certificates were valid as
+Release v1.0.0 (Zenodo version DOI 10.5281/zenodo.21863026) contains four
+defects, all now corrected. None affects Theorem 1, whose certificates were valid as
 published; the searcher and the Section 4 statistics were affected.
 
 1. **Searcher pair cutoff.** `search.c` hard-coded indices 0..15 on the strength
@@ -222,7 +222,11 @@ published; the searcher and the Section 4 statistics were affected.
    never binding, since p < 2^31, but the test has been replaced by trial
    division so that no such bound is needed.
 
-Anyone citing this work should cite the corrected release rather than v1.0.0.
+Anyone citing this work should cite the corrected release, version DOI
+10.5281/zenodo.21863408, rather than v1.0.0. Note that 10.5281/zenodo.21863025
+is the concept DOI: it always resolves to the newest version, so it is the
+right identifier for "this project" but the wrong one for naming a particular
+release.
 
 ### 5.7 Reproducing
 ```
