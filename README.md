@@ -1,5 +1,11 @@
 # A303639 Counterexample Project
 
+# A303639 Counterexample Project
+
+[![DOI](https://zenodo.org/badge/1328043397.svg)](https://doi.org/10.5281/zenodo.21863025)
+
+**Claim.** `n = 800,322,180` is not of the form...
+
 **Claim.** `n = 800,322,180` is not of the form `a^2 + b^2 + C(2c+1,c) + C(2d+1,d)`
 (`a<=b`, `c<=d`, all nonnegative), refuting the conjecture of Zhi-Wei Sun (2018)
 recorded in [OEIS A303639](https://oeis.org/A303639) that `a(n) > 0` for all `n > 1`
