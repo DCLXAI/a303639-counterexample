@@ -3,3 +3,6 @@ __pycache__/
 *.o
 search
 .pytest_cache/
+
+# Lean
+lean/.lake/
