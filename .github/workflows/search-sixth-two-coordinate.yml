@@ -24,6 +24,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install C++ dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-dev
+
       - name: Build scanner
         run: |
           g++ -O3 -march=native -fopenmp -std=c++20 \
