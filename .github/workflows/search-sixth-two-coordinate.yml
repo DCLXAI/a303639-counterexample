@@ -1,4 +1,4 @@
-name: Search sixth A303639 counterexample — two-coordinate K59
+name: Search sixth A303639 counterexample — expanded two-coordinate K59
 
 on:
   push:
@@ -34,12 +34,12 @@ jobs:
           g++ -O3 -march=native -fopenmp -std=c++20 \
             search/two_coord_k59.cpp -o two_coord_k59
 
-      - name: Generate and refine two-coordinate candidates
+      - name: Generate and refine expanded two-coordinate candidates
         env:
           OMP_NUM_THREADS: 4
         run: |
           ./two_coord_k59 "${{ matrix.q1 }}" "candidates_q${{ matrix.q1 }}.txt" \
-            64 250 72 500 120 2> "scan_q${{ matrix.q1 }}.log"
+            128 1200 84 2000 400 2> "scan_q${{ matrix.q1 }}.log"
           cat "scan_q${{ matrix.q1 }}.log"
           wc -l "candidates_q${{ matrix.q1 }}.txt"
 
@@ -62,7 +62,7 @@ jobs:
       - name: Upload shard artifact
         uses: actions/upload-artifact@v4
         with:
-          name: k59-two-coordinate-q${{ matrix.q1 }}
+          name: k59-two-coordinate-expanded-q${{ matrix.q1 }}
           if-no-files-found: error
           retention-days: 30
           path: |
