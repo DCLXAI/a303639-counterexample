@@ -1,9 +1,11 @@
-name: Search sixth A303639 counterexample — two-coordinate K60
+name: Search sixth A303639 counterexample — corrected two-coordinate K60
 
 on:
   push:
     branches: [search-sixth-two-coordinate-v3]
     paths:
+      - 'search/two_coord_k59.cpp'
+      - 'search/verify_two_coord_generic.py'
       - '.github/workflows/search-sixth-k60.yml'
   workflow_dispatch:
 
@@ -27,17 +29,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libboost-dev
 
-      - name: Generate K60 sources
+      - name: Generate K60 scanner source
         run: |
           sed \
             -e 's/constexpr int K = 59;/constexpr int K = 60;/' \
             -e 's/constexpr int WORDS = 29;/constexpr int WORDS = 30;/' \
             -e 's/if (score>48) continue;/if (score>60) continue;/' \
             search/two_coord_k59.cpp > two_coord_k60.cpp
-          sed \
-            -e 's/8 + 29/8 + 30/' \
-            -e 's/range(60)/range(61)/g' \
-            search/verify_two_coord.py > verify_two_coord_k60.py
 
       - name: Build scanner
         run: |
@@ -53,9 +51,10 @@ jobs:
           cat "scan_q${{ matrix.q1 }}.log"
           wc -l "candidates_q${{ matrix.q1 }}.txt"
 
-      - name: Independent complete factor verification
+      - name: Independent complete factor verification with correct K60 ordering
         run: |
-          python3 verify_two_coord_k60.py \
+          python3 search/verify_two_coord_generic.py \
+            60 \
             "candidates_q${{ matrix.q1 }}.txt" \
             "verification_q${{ matrix.q1 }}.json" \
             2 90 | tee "verify_q${{ matrix.q1 }}.log"
@@ -72,7 +71,7 @@ jobs:
       - name: Upload shard artifact
         uses: actions/upload-artifact@v4
         with:
-          name: k60-two-coordinate-q${{ matrix.q1 }}
+          name: k60-two-coordinate-corrected-q${{ matrix.q1 }}
           if-no-files-found: error
           retention-days: 30
           path: |
