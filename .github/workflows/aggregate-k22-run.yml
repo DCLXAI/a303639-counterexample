@@ -1,0 +1,89 @@
+name: Aggregate exact K22 run 33415786949
+
+on:
+  push:
+    branches: [search-sixth-two-coordinate-v3]
+    paths:
+      - '.github/workflows/aggregate-k22-run.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      SOURCE_RUN: '33415786949'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Wait for all 96 exact shard artifacts
+        run: |
+          for attempt in $(seq 1 360); do
+            status=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}" --jq .status)
+            count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN}/artifacts?per_page=100" --jq '.artifacts | length')
+            echo "attempt=${attempt} status=${status} artifacts=${count}"
+            if [ "$status" = completed ] && [ "$count" -eq 96 ]; then
+              exit 0
+            fi
+            sleep 20
+          done
+          echo 'source run did not complete with 96 artifacts' >&2
+          exit 1
+
+      - name: Download every exact shard
+        run: |
+          mkdir artifacts
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --dir artifacts
+
+      - name: Verify hashes and aggregate gap-free interval
+        run: |
+          set -euo pipefail
+          for d in artifacts/exact-k22-shard-*; do
+            (cd "$d" && sha256sum -c SHA256SUMS.txt)
+          done
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          root=Path('artifacts');out=Path('aggregate');out.mkdir()
+          summaries=[]
+          for p in root.glob('exact-k22-shard-*/summary.json'):
+              s=json.loads(p.read_text());s['_dir']=str(p.parent);summaries.append(s)
+          assert len(summaries)==96,len(summaries)
+          summaries.sort(key=lambda x:x['start'])
+          start=4_116_715_363_800;end=16_123_801_841_549;cursor=start
+          processed=blocks=candidates=exact_calls=lattice=0;counterexamples=[];rows=[]
+          for s in summaries:
+              assert s['start']==cursor,(cursor,s['start'])
+              assert s['processed']==s['end']-s['start']+1
+              cursor=s['end']+1;processed+=s['processed'];blocks+=s['blocks']
+              counterexamples.extend(s['counterexamples']);candidates+=s['prefilter_candidates']
+              exact_calls+=s['exact_calls_after_prefilter'];lattice+=s['lattice_pair_visits']
+              rows.append({k:s[k] for k in ['shard','start','end','processed','blocks','counterexamples','wall_seconds']})
+          assert cursor==end+1 and processed==end-start+1
+          aggregate={'schema':'a303639-k22-exact-complete-v1','source_run':33415786949,
+                     'start':start,'end':end,'processed':processed,'shards':96,'blocks':blocks,
+                     'counterexamples':sorted(counterexamples),'prefilter_candidates':candidates,
+                     'exact_calls_after_prefilter':exact_calls,'lattice_pair_visits':lattice,
+                     'shard_records':rows}
+          (out/'SUMMARY.json').write_text(json.dumps(aggregate,indent=2)+'\n')
+          (out/'COUNTEREXAMPLES.txt').write_text('\n'.join(map(str,aggregate['counterexamples']))+('\n' if aggregate['counterexamples'] else ''))
+          (out/'SOURCE_RUN.txt').write_text('33415786949\n')
+          lines=[]
+          for p in sorted(out.iterdir()):
+              if p.name=='SHA256SUMS.txt':continue
+              lines.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}")
+          (out/'SHA256SUMS.txt').write_text('\n'.join(lines)+'\n')
+          print(json.dumps({k:aggregate[k] for k in ['start','end','processed','shards','blocks','counterexamples']},indent=2))
+          PY
+
+      - name: Upload audited aggregate
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-k22-complete-audited
+          retention-days: 90
+          if-no-files-found: error
+          path: aggregate/
