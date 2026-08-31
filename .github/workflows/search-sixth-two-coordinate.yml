@@ -1,0 +1,69 @@
+name: Search sixth A303639 counterexample — two-coordinate K59
+
+on:
+  push:
+    branches: [search-sixth-two-coordinate-v3]
+    paths:
+      - 'search/two_coord_k59.cpp'
+      - 'search/verify_two_coord.py'
+      - '.github/workflows/search-sixth-two-coordinate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 11
+      matrix:
+        q1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build scanner
+        run: |
+          g++ -O3 -march=native -fopenmp -std=c++20 \
+            search/two_coord_k59.cpp -o two_coord_k59
+
+      - name: Generate and refine two-coordinate candidates
+        env:
+          OMP_NUM_THREADS: 4
+        run: |
+          ./two_coord_k59 "${{ matrix.q1 }}" "candidates_q${{ matrix.q1 }}.txt" \
+            64 250 72 500 120 2> "scan_q${{ matrix.q1 }}.log"
+          cat "scan_q${{ matrix.q1 }}.log"
+          wc -l "candidates_q${{ matrix.q1 }}.txt"
+
+      - name: Independent complete factor verification
+        run: |
+          python3 search/verify_two_coord.py \
+            "candidates_q${{ matrix.q1 }}.txt" \
+            "verification_q${{ matrix.q1 }}.json" \
+            2 90 | tee "verify_q${{ matrix.q1 }}.log"
+
+      - name: Hash results
+        run: |
+          sha256sum \
+            "candidates_q${{ matrix.q1 }}.txt" \
+            "verification_q${{ matrix.q1 }}.json" \
+            "scan_q${{ matrix.q1 }}.log" \
+            "verify_q${{ matrix.q1 }}.log" \
+            > "SHA256SUMS_q${{ matrix.q1 }}.txt"
+
+      - name: Upload shard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k59-two-coordinate-q${{ matrix.q1 }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            candidates_q${{ matrix.q1 }}.txt
+            verification_q${{ matrix.q1 }}.json
+            scan_q${{ matrix.q1 }}.log
+            verify_q${{ matrix.q1 }}.log
+            SHA256SUMS_q${{ matrix.q1 }}.txt
+            FOUND_COUNTEREXAMPLE.json
