@@ -1,0 +1,84 @@
+name: Search sixth A303639 counterexample — two-coordinate K60
+
+on:
+  push:
+    branches: [search-sixth-two-coordinate-v3]
+    paths:
+      - '.github/workflows/search-sixth-k60.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 11
+      matrix:
+        q1: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install C++ dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libboost-dev
+
+      - name: Generate K60 sources
+        run: |
+          sed \
+            -e 's/constexpr int K = 59;/constexpr int K = 60;/' \
+            -e 's/constexpr int WORDS = 29;/constexpr int WORDS = 30;/' \
+            -e 's/if (score>48) continue;/if (score>60) continue;/' \
+            search/two_coord_k59.cpp > two_coord_k60.cpp
+          sed \
+            -e 's/8 + 29/8 + 30/' \
+            -e 's/range(60)/range(61)/g' \
+            search/verify_two_coord.py > verify_two_coord_k60.py
+
+      - name: Build scanner
+        run: |
+          g++ -O3 -march=native -fopenmp -std=c++20 \
+            two_coord_k60.cpp -o two_coord_k60
+
+      - name: Generate and refine K60 candidates
+        env:
+          OMP_NUM_THREADS: 4
+        run: |
+          ./two_coord_k60 "${{ matrix.q1 }}" "candidates_q${{ matrix.q1 }}.txt" \
+            96 500 90 1000 250 2> "scan_q${{ matrix.q1 }}.log"
+          cat "scan_q${{ matrix.q1 }}.log"
+          wc -l "candidates_q${{ matrix.q1 }}.txt"
+
+      - name: Independent complete factor verification
+        run: |
+          python3 verify_two_coord_k60.py \
+            "candidates_q${{ matrix.q1 }}.txt" \
+            "verification_q${{ matrix.q1 }}.json" \
+            2 90 | tee "verify_q${{ matrix.q1 }}.log"
+
+      - name: Hash results
+        run: |
+          sha256sum \
+            "candidates_q${{ matrix.q1 }}.txt" \
+            "verification_q${{ matrix.q1 }}.json" \
+            "scan_q${{ matrix.q1 }}.log" \
+            "verify_q${{ matrix.q1 }}.log" \
+            > "SHA256SUMS_q${{ matrix.q1 }}.txt"
+
+      - name: Upload shard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k60-two-coordinate-q${{ matrix.q1 }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            candidates_q${{ matrix.q1 }}.txt
+            verification_q${{ matrix.q1 }}.json
+            scan_q${{ matrix.q1 }}.log
+            verify_q${{ matrix.q1 }}.log
+            SHA256SUMS_q${{ matrix.q1 }}.txt
+            FOUND_COUNTEREXAMPLE.json
