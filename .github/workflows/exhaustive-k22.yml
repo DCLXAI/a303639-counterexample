@@ -1,0 +1,98 @@
+name: Exact exhaustive A303639 scan — complete K22 interval
+
+on:
+  push:
+    branches: [search-sixth-two-coordinate-v3]
+    paths:
+      - '.github/workflows/exhaustive-k22.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-scan:
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build exact scanner
+        run: |
+          g++ -O3 -march=native -std=c++20 \
+            search/scan_breakthrough_exact.cpp -o scan_exact
+
+      - name: Derive exact shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          START = 4_116_715_363_800
+          END = 16_123_801_841_549
+          WORKERS = 96
+          i = int(os.environ['SHARD'])
+          total = END - START + 1
+          base, extra = divmod(total, WORKERS)
+          size = base + (i < extra)
+          lo = START + i * base + min(i, extra)
+          hi = lo + size - 1
+          open('shard.json','w').write(json.dumps({'shard':i,'start':lo,'end':hi,'processed':size},indent=2))
+          print(lo,hi,size)
+          PY
+
+      - name: Exact block scan
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, time, hashlib
+          from pathlib import Path
+          shard=json.load(open('shard.json'));cursor=shard['start'];block_size=2_000_000_000
+          blocks=[];found=[];wall0=time.time()
+          while cursor<=shard['end']:
+              end=min(shard['end'],cursor+block_size-1)
+              out=Path(f'block_{len(blocks):03d}.json');begun=time.time()
+              cp=subprocess.run(['./scan_exact',str(cursor),str(end),str(out),'11'],text=True,capture_output=True)
+              if cp.returncode:raise SystemExit(f'scanner failed {cursor}..{end}:\n{cp.stderr}')
+              rec=json.loads(out.read_text())
+              assert rec['start']==cursor and rec['end']==end and rec['processed']==end-cursor+1
+              rec['wall_seconds']=time.time()-begun;rec['sha256']=hashlib.sha256(out.read_bytes()).hexdigest()
+              blocks.append(rec);found.extend(rec['counterexamples']);print(cp.stderr.strip(),flush=True);cursor=end+1
+          summary={'schema':'a303639-k22-exact-shard-v1',**shard,'blocks':len(blocks),'block_size':block_size,
+                   'counterexamples':sorted(set(found)),'prefilter_candidates':sum(x['prefilter_candidates'] for x in blocks),
+                   'exact_calls_after_prefilter':sum(x['exact_calls_after_prefilter'] for x in blocks),
+                   'lattice_pair_visits':sum(x['lattice_pair_visits'] for x in blocks),'wall_seconds':time.time()-wall0,
+                   'block_records':blocks}
+          Path('summary.json').write_text(json.dumps(summary,indent=2));Path('FOUND.txt').write_text('\n'.join(map(str,summary['counterexamples']))+('\n' if summary['counterexamples'] else ''))
+          print('SHARD_SUMMARY',json.dumps({k:summary[k] for k in ['shard','start','end','processed','blocks','counterexamples','wall_seconds']}))
+          PY
+
+      - name: Verify and hash
+        run: |
+          python3 - <<'PY'
+          import json
+          s=json.load(open('summary.json'));cursor=s['start'];total=0
+          for r in s['block_records']:
+              assert r['start']==cursor and r['processed']==r['end']-r['start']+1
+              cursor=r['end']+1;total+=r['processed']
+          assert cursor==s['end']+1 and total==s['processed']
+          print('AUDIT_OK',total,'counterexamples',s['counterexamples'])
+          PY
+          sha256sum shard.json summary.json FOUND.txt block_*.json > SHA256SUMS.txt
+
+      - name: Upload exact shard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-k22-shard-${{ matrix.shard }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            shard.json
+            summary.json
+            FOUND.txt
+            SHA256SUMS.txt
+            block_*.json
